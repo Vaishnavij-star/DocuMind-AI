@@ -1,19 +1,18 @@
-# Streamlit for web app
+# Web app
 streamlit==1.26.0
 
 # Environment variables
 python-dotenv==1.0.0
 
-# PDF handling (text extraction only)
+# PDF handling
 PyMuPDF==1.26.7
 pdfplumber==0.11.8
 
-# Image processing (basic, optional)
+# Image processing
 Pillow==9.4.0
 
 # AI & embeddings
 google-generativeai==0.8.6
-
 
 # LLM & pipelines
 langchain==1.2.0
