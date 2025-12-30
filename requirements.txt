@@ -1,0 +1,17 @@
+# Web framework
+streamlit==1.26.0
+python-dotenv
+
+# PDF handling
+PyMuPDF
+pdfplumber
+Pillow==9.5.0  # Compatible with Streamlit 1.26.0
+
+# OCR
+pytesseract==0.3.13
+
+# AI & embeddings
+google-generativeai==0.8.6
+faiss-cpu
+langchain
+langchain-openai
