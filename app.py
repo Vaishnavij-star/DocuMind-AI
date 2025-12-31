@@ -1,124 +1,121 @@
 import streamlit as st
-from google.genai import Client
 from PyPDF2 import PdfReader
-import pytesseract
 from pdf2image import convert_from_bytes
+import pytesseract
+import re
+import torch
 
-# -------------------------------
-# Helper: Chunk text safely
-# -------------------------------
-def chunk_text(text, chunk_size=1200, overlap=200):
-    chunks = []
-    start = 0
-    text_length = len(text)
-    while start < text_length:
-        end = start + chunk_size
-        chunks.append(text[start:end])
-        start = end - overlap
-        if start < 0:
-            start = 0
-    return chunks
+from sentence_transformers import SentenceTransformer, util
 
-# -------------------------------
-# OCR helper (cached)
-# -------------------------------
-@st.cache_data(show_spinner=False)
-def run_ocr(pdf_bytes):
-    images = convert_from_bytes(pdf_bytes, dpi=300, fmt="png")
-    ocr_text = ""
-    config = "--oem 3 --psm 6"
-    for img in images:
-        ocr_text += pytesseract.image_to_string(img, config=config) + "\n"
-    return ocr_text
+# -----------------------------
+# Page Config
+# -----------------------------
+st.set_page_config(
+    page_title="DocuMind AI - Offline PDF Q&A",
+    page_icon="📄",
+    layout="wide"
+)
 
-# -------------------------------
-# Initialize GenAI client
-# -------------------------------
-client = Client()
+st.title("📄 DocuMind AI - PDF Q&A (Offline/Free, OCR Enabled)")
+st.write("Upload PDFs and ask unlimited questions. Works fully offline.")
 
-# -------------------------------
-# Streamlit UI
-# -------------------------------
-st.set_page_config(page_title="📄 DocuMind AI", layout="wide")
-st.title("📄 DocuMind AI")
-st.write("Upload any PDF document (text or scanned) and ask questions. The AI will answer based only on your document.")
+# -----------------------------
+# Load Model
+# -----------------------------
+@st.cache_resource
+def load_model():
+    return SentenceTransformer("all-MiniLM-L6-v2")
 
-uploaded_file = st.file_uploader("Upload your PDF", type="pdf")
+model = load_model()
 
-if uploaded_file:
+# -----------------------------
+# Clean Text
+# -----------------------------
+def clean_text(text):
+    text = re.sub(r"http\S+", "", text)
+    text = re.sub(r"\n{2,}", "\n", text)
+    text = re.sub(r"\s{2,}", " ", text)
+    return text.strip()
+
+# -----------------------------
+# Sentence Split (NO nltk)
+# -----------------------------
+def split_sentences(text):
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    return [s.strip() for s in sentences if len(s.strip()) > 20]
+
+# -----------------------------
+# PDF Text + OCR
+# -----------------------------
+def extract_text_from_pdf(file_bytes):
     text = ""
 
-    # ---------- Try PyPDF2 text extraction ----------
-    pdf_reader = PdfReader(uploaded_file)
-    for page in pdf_reader.pages:
-        page_text = page.extract_text()
-        if page_text:
-            text += page_text + "\n"
+    try:
+        reader = PdfReader(file_bytes)
+        for page in reader.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+    except:
+        pass
 
-    # ---------- OCR fallback ----------
     if not text.strip():
-        st.warning("No text detected. Using OCR fallback...")
-        with st.spinner("Running OCR (may take 20–30 seconds for large PDFs)..."):
-            text = run_ocr(uploaded_file.getvalue())
+        images = convert_from_bytes(file_bytes)
+        for img in images:
+            text += pytesseract.image_to_string(img) + "\n"
 
-    # ---------- Hard fail if no text ----------
-    if not text.strip():
-        st.error("❌ Unable to extract any text from this PDF.")
-        st.stop()
+    return clean_text(text)
 
-    # ---------- Optional OCR Preview ----------
-    if st.checkbox("Show raw extracted text"):
-        st.text_area("Extracted Text Preview", text[:5000], height=250)
+# -----------------------------
+# Answer Question (Sentence Level)
+# -----------------------------
+def answer_question(text, question, top_k=3):
+    sentences = split_sentences(text)
 
-    st.success("PDF processed successfully!")
+    if not sentences:
+        return "No readable content found."
 
-    # ---------- Chunking ----------
-    chunks = chunk_text(text)
-    st.write(f"📚 Document split into {len(chunks)} chunks for model processing")
+    sentence_embeddings = model.encode(sentences, convert_to_tensor=True)
+    question_embedding = model.encode(question, convert_to_tensor=True)
 
-    # ---------- Auto-select compatible model ----------
-    selected_model = None
-    for model in client.models.list():
-        try:
-            client.models.generate_content(model=model.name, contents="Hello")
-            selected_model = model.name
-            break
-        except Exception:
-            continue
+    scores = util.cos_sim(question_embedding, sentence_embeddings)[0]
+    top_results = torch.topk(scores, k=min(top_k, len(sentences)))
 
-    if not selected_model:
-        st.error("❌ No compatible GenAI model found.")
-        st.stop()
+    best_sentences = [sentences[idx] for idx in top_results.indices]
+    return " ".join(best_sentences)
 
-    st.write(f"✅ Using model: `{selected_model}`")
+# -----------------------------
+# Upload PDFs
+# -----------------------------
+uploaded_files = st.file_uploader(
+    "Upload PDF(s)",
+    type="pdf",
+    accept_multiple_files=True
+)
 
-    # ---------- Question input ----------
-    st.info("💡 Ask any question about the PDF (summary, facts, or details)")
-    user_question = st.text_input("Your question:")
+if uploaded_files:
+    pdf_texts = {}
 
-    if user_question:
-        # Use keyword matching to select relevant chunks
-        keywords = user_question.lower().split()
-        relevant_chunks = [c for c in chunks if any(k in c.lower() for k in keywords)]
-        if not relevant_chunks:
-            # fallback: use first 3 chunks
-            relevant_chunks = chunks[:3]
-        context = "\n\n".join(relevant_chunks[:3])
+    for file in uploaded_files:
+        text = extract_text_from_pdf(file.read())
+        if text:
+            pdf_texts[file.name] = text
 
-        prompt = f"""
-Answer ONLY using the document below.
+    st.success(f"✅ Loaded {len(pdf_texts)} PDF(s) successfully.")
 
-DOCUMENT:
-{context}
+    selected_pdf = st.selectbox(
+        "Select a PDF to ask questions about",
+        list(pdf_texts.keys())
+    )
 
-QUESTION:
-{user_question}
-"""
-        with st.spinner("Generating answer..."):
-            response = client.models.generate_content(
-                model=selected_model,
-                contents=prompt
-            )
+    question = st.text_input("Enter your question:")
 
-        st.subheader("Answer")
-        st.write(response.text)
+    if question:
+        with st.spinner("Finding answer..."):
+            answer = answer_question(pdf_texts[selected_pdf], question)
+
+        st.subheader("🤖 Answer:")
+        st.write(answer)
+
+else:
+    st.info("Please upload at least one PDF to begin.")

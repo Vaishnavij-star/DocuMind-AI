@@ -2,33 +2,33 @@
 
 
 
-AI-powered PDF reader and analyzer. Supports text and image PDFs, resumes, articles, and large documents.
+AI-powered PDF reader and analyzer. Works fully offline with OCR support.
 
 
 
 \## Features
 
-\- Extract and analyze text from PDFs
+\- Multi-PDF upload
 
-\- Support for image-based PDFs (OCR)
+\- Unlimited question-answering per PDF
 
-\- Resume parsing
+\- Works with text \& image-based PDFs
 
-\- Article summarization and analysis
+\- Clean, readable answers
 
-\- Handles large documents efficiently
+\- Offline semantic search using SentenceTransformers
 
 
 
 \## Installation
 
-1\. Clone the repository:
+```bash
 
-&nbsp;  ```bash
+git clone https://github.com/Vaishnavij-star/DocuMind-AI.git
 
-&nbsp;  git clone https://github.com/yourusername/DocuMind-AI.git
+cd DocuMind-AI
 
-&nbsp;  cd DocuMind-AI
+pip install -r requirements.txt
 
 
 
