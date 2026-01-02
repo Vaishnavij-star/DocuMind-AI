@@ -1,34 +1,40 @@
-\# DocuMind-AI
+# 📄 DocuMind-AI
 
+DocuMind-AI is an AI-powered PDF Question & Answer application that allows users to upload PDFs (text-based or scanned) and ask questions directly from the document content.
 
+It supports **OCR for image-based PDFs**, works **offline**, and ensures answers are generated **only from the uploaded document**.
 
-AI-powered PDF reader and analyzer. Works fully offline with OCR support.
+---
 
+## 🚀 Features
 
+- 📂 Upload any PDF (text or scanned)
+- 🔍 Automatic text extraction using **PyPDF2**
+- 🖼️ OCR fallback for scanned PDFs using **Tesseract**
+- 🧠 Intelligent question answering based only on document content
+- 📄 Large PDF handling via smart text chunking
+- ⚡ Clean and readable answers
+- 📴 Works fully offline (no vector DB required)
 
-\## Features
+---
 
-\- Multi-PDF upload
+## 🛠️ Tech Stack
 
-\- Unlimited question-answering per PDF
+- **Python**
+- **Streamlit**
+- **Google GenAI**
+- **PyPDF2**
+- **pdf2image**
+- **pytesseract**
+- **Pillow**
 
-\- Works with text \& image-based PDFs
+---
 
-\- Clean, readable answers
+## 📦 Installation
 
-\- Offline semantic search using SentenceTransformers
-
-
-
-\## Installation
-
+### 1️⃣ Clone the repository
 ```bash
-
 git clone https://github.com/Vaishnavij-star/DocuMind-AI.git
-
 cd DocuMind-AI
-
-pip install -r requirements.txt
-
 
 
