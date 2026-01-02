@@ -1,7 +1,7 @@
 streamlit
+google-genai
 PyPDF2
 pdf2image
 pytesseract
-sentence-transformers
-torch
 Pillow
+s
